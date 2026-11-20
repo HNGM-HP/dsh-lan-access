@@ -1,0 +1,6 @@
+{
+  "meta": {
+    "title": "LAN access",
+    "description": "Approve devices before they can open the native DSH Web UI."
+  }
+}

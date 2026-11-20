@@ -1,0 +1,6 @@
+- insert:
+    - id: lan-access
+      name: '@local/dsh-lan-access'
+      config:
+        bind: 0.0.0.0
+        port: 8097
