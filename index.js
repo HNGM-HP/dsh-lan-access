@@ -300,12 +300,20 @@ export function apply(ctx, config = {}) {
 
     function csrfAllowed(req) {
         if (req.method === 'GET' || req.method === 'HEAD') return true;
+        // A caller able to set this custom header has already passed the DSH
+        // owner-cookie check above; browsers never add it from another origin.
+        if (req.headers['x-dsh-lan-admin'] === '1') return true;
         const authority = requestAuthority(req);
         if (authority === undefined) return false;
         const originHeader = req.headers.origin;
-        if (typeof originHeader === 'string') return originHeader === `http://${authority}` || originHeader === `https://${authority}`;
+        if (typeof originHeader === 'string') {
+            return originHeader === `http://${authority}`
+                || originHeader === `https://${authority}`
+                || originHeader === 'dsh-app://app'
+                || originHeader.startsWith('dsh-app://');
+        }
         const site = req.headers['sec-fetch-site'];
-        return site === 'same-origin' || site === 'none';
+        return site === 'same-origin' || site === 'same-site' || site === 'none';
     }
 
     function state() {
@@ -788,6 +796,12 @@ export function apply(ctx, config = {}) {
             res.end('forbidden\n');
             return;
         }
+        // Requests originating on this machine are already inside the owner's
+        // trust boundary; do not make the local browser pair itself as a device.
+        if (isLoopback(req)) {
+            proxyHttp(req, res);
+            return;
+        }
         const device = verifyDevice(req);
         if (device !== undefined) {
             device.lastSeen = Date.now();
@@ -809,7 +823,7 @@ export function apply(ctx, config = {}) {
         }, requestHandler)
         : http.createServer(requestHandler);
     server.on('upgrade', (req, socket, head) => {
-        if (verifyDevice(req) === undefined) {
+        if (!isLoopback(req) && verifyDevice(req) === undefined) {
             socket.write('HTTP/1.1 401 Unauthorized\r\nConnection: close\r\n\r\n');
             socket.destroy();
             return;

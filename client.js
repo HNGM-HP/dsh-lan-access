@@ -21,8 +21,14 @@ window.__ModuleLoader__.load({
       status: { display: 'flex', gap: 12, color: 'var(--dsw-alias-label-secondary, #666)', fontSize: 12 },
     };
 
-    async function request(path, options) {
-      const response = await fetch(path, { cache: 'no-store', credentials: 'same-origin', ...options });
+    async function request(path, options = {}) {
+      const { headers, ...rest } = options;
+      const response = await fetch(path, {
+        cache: 'no-store',
+        credentials: 'same-origin',
+        ...rest,
+        headers: { 'x-dsh-lan-admin': '1', ...(headers ?? {}) },
+      });
       let value = null;
       try { value = await response.json(); } catch { value = null; }
       if (!response.ok) {
